@@ -30,6 +30,16 @@ def save_plot(img, filename):
     plt.close()
 
 
+def find_nose(img, gray):
+    nose_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_mcs_nose.xml')
+    nose = nose_cascade.detectMultiScale(gray)
+    for predicted_coords in nose:
+        (x, y, w, h) = predicted_coords
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 255), 2)
+        cv2.putText(img, 'Nose', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 255), 1)
+    return nose
+
+
 def viola_jones(img, gray):
     left_ear_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_mcs_leftear.xml')
     left_ears = left_ear_cascade.detectMultiScale(gray, params["left"]["scale_step"], params["left"]["size"],
@@ -75,4 +85,5 @@ if __name__ == '__main__':
     capture_image()
     (filename, img, gray) = read_image(path)
     viola_jones(img, gray)
+    find_nose(img, gray)
     save_plot(img, filename)
