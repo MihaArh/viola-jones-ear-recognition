@@ -1,4 +1,6 @@
 from time import sleep
+
+import imutils as imutils
 import matplotlib.pyplot as plt
 
 import cv2
@@ -28,6 +30,21 @@ def save_plot(img, filename):
 
     plt.savefig(f'data/test_computed/{filename}')
     plt.close()
+
+
+def get_bounding_boxes(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.threshold(gray, 210, 255, cv2.THRESH_BINARY)[1]
+    cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                            cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    boxes = []
+    for c in cnts:
+        x, y, w, h = cv2.boundingRect(c)
+        boxes.append([x, y, x + w, y + h])
+
+    return boxes
 
 
 def find_nose(img, gray):
@@ -82,7 +99,7 @@ params = {
 
 if __name__ == '__main__':
     path = "data/mydata/camface.jpg"
-    capture_image()
+    # capture_image()
     (filename, img, gray) = read_image(path)
     viola_jones(img, gray)
     find_nose(img, gray)
