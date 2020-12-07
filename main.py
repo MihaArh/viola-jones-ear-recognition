@@ -4,6 +4,7 @@ import imutils as imutils
 import matplotlib.pyplot as plt
 
 import cv2
+import numpy as np
 
 
 def capture_image():
@@ -45,6 +46,26 @@ def get_bounding_boxes(img):
         boxes.append([x, y, x + w, y + h])
 
     return boxes
+
+
+def compute_iou(pred_box, gt_box):
+    ixmin = max(pred_box[0], gt_box[0])
+    ixmax = min(pred_box[2], gt_box[2])
+    iymin = max(pred_box[1], gt_box[1])
+    iymax = min(pred_box[3], gt_box[3])
+
+    iw = np.maximum(ixmax - ixmin + 1., 0.)
+    ih = np.maximum(iymax - iymin + 1., 0.)
+
+    inters = iw * ih
+
+    uni = ((pred_box[2] - pred_box[0] + 1.) * (pred_box[3] - pred_box[1] + 1.) +
+           (gt_box[2] - gt_box[0] + 1.) * (gt_box[3] - gt_box[1] + 1.) -
+           inters)
+
+    iou = inters / uni
+
+    return iou
 
 
 def find_nose(img, gray):
