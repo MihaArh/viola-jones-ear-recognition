@@ -29,8 +29,9 @@ def save_plot(img, filename):
     for ix, image in enumerate(images):
         ax = plt.subplot(int("11" + str(ix + 1)))
         ax.imshow(image)
-
-    plt.savefig(f'data/test_computed/{filename}')
+    if not os.path.isdir(args.dest):
+        os.makedirs(args.dest)
+    plt.savefig(f'{args.dest}/{filename}')
     plt.close()
 
 
@@ -94,6 +95,7 @@ def viola_jones(img, gray, left=True, right=True):
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
             predicted["left"].append([x, y, x + w, y + h])
             cv2.putText(img, 'Left ear', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
+
     if right:
         right_ear_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_mcs_rightear.xml')
         right_ears = right_ear_cascade.detectMultiScale(gray, params["right"]["scale_step"],
@@ -148,7 +150,7 @@ def compare(img, annot_coords, predicted_coords):
 
 def plot_p_r(precision, recall):
     plt.title("Precision Recall Curve")
-    plt.plot(precision, recall, '-', color='limegreen')
+    plt.plot(recall, precision, '-', color='limegreen')
     plt.xlabel("Recall")
     plt.ylabel("Precision")
     plt.legend()
@@ -166,8 +168,7 @@ def run_on_miltiple(pth):
     global precisions, recalls, calculations
     for filename in os.listdir(pth):
         (filename, img, gray) = read_image("/".join([pth, filename]))
-
-        path_annot = f"data/testannot_rect/{filename}"
+        path_annot = f"{args.annot}/{filename}"
         (filename_annot, img_annot, gray_annot) = read_image(path_annot)
 
         annot_coords = get_bounding_boxes(img_annot)
@@ -178,12 +179,16 @@ def run_on_miltiple(pth):
         iou_scores = compare(img, annot_coords, predicted_coords)
         iou_scores_combined += iou_scores
         save_plot(img, filename)
-        precision = tp / (fp + tp)
+        if (fp + tp) == 0:
+            precision = 0
+        else:
+            precision = tp / (fp + tp)
+
         recall = tp / (fn + tp)
-        print(precision, recall)
         calculations.append((precision, recall))
         precisions.append(precision)
         recalls.append(recall)
+        print("Precision:", precision, "Recall:", recall)
 
     return iou_scores_combined
 
@@ -193,7 +198,7 @@ def run_on_one(pth, capture=False):
         capture_image()
     (filename, img, gray) = read_image(pth)
 
-    path_annot = f"data/testannot_rect/{filename}"
+    path_annot = f"{args.annot}/{filename}"
     (filename_annot, img_annot, gray_annot) = read_image(path_annot)
 
     annot_coords = get_bounding_boxes(img_annot)
@@ -248,26 +253,28 @@ params = {
     "left": {'scale_step': 1.0149, 'size': 3},
     "right": {'scale_step': 1.0199, 'size': 1}
 }
-
+global args
+args = None
 if __name__ == '__main__':
     arguments = str(sys.argv)
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--Path", default="data/test", help="Path to destination file or directory.")
-    parser.add_argument("--plot", default=False, action='store_true', help="Plot precision and recall curve.")
+    parser.add_argument("-src", default="data/test", help="path to data file or directory.")
+    parser.add_argument("-dest", default="data/test_computed", help="path to destinatnion directory.")
+    parser.add_argument("-annot", default="data/testannot_rect", help="path to directory of annotated images.")
+    parser.add_argument("-plot", default=False, action='store_true', help="plot precision and recall curve.")
     args = parser.parse_args()
 
-    if os.path.isdir(args.Path):
-        run_on_miltiple(args.Path)
+    if os.path.isdir(args.src):
+        run_on_miltiple(args.src)
         if args.plot:
-            calculations = sorted(calculations, key=lambda x: x[0])
+            calculations = sorted(calculations, key=lambda x: x[1])
             p = []
             r = []
-            for (prediction, recall) in calculations:
-                p.append(prediction)
+            for (precision, recall) in calculations:
+                p.append(precision)
                 r.append(recall)
-
             plot_p_r(p, r)
-    elif os.path.isfile(args.Path):
-        run_on_one(args.Path)
+    elif os.path.isfile(args.src):
+        run_on_one(args.src)
     else:
         parser.error('File or directory does not exist.')
